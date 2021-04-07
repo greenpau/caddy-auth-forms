@@ -94,7 +94,7 @@ dep:
 	@go get -u github.com/greenpau/versioned/cmd/versioned
 	@go get -u github.com/google/addlicense
 
-license:
+license: dep
 	@addlicense -c "Paul Greenberg greenpau@outlook.com" -y 2020 pkg/*/*/*.go pkg/*/*.go *.go
 
 mod:
