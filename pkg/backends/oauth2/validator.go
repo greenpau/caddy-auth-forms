@@ -16,11 +16,12 @@ package oauth2
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	jwtlib "github.com/dgrijalva/jwt-go"
 	jwtclaims "github.com/greenpau/caddy-auth-jwt/pkg/claims"
 	"github.com/greenpau/caddy-auth-portal/pkg/errors"
-	"strings"
-	"time"
 )
 
 func (b *Backend) validateAccessToken(state string, data map[string]interface{}) (*jwtclaims.UserClaims, error) {
@@ -105,27 +106,71 @@ func (b *Backend) validateAccessToken(state string, data map[string]interface{})
 		}
 	}
 
+	addRoles := func(i interface{}, path string) error {
+		switch roles := i.(type) {
+		case []interface{}:
+			for _, role := range roles {
+				switch role.(type) {
+				case string:
+					claims.Roles = append(claims.Roles, role.(string))
+				default:
+					return fmt.Errorf("invalid %s entry type %v", path, role)
+				}
+			}
+		case string:
+			for _, role := range strings.Split(roles, " ") {
+				claims.Roles = append(claims.Roles, role)
+			}
+		default:
+			return fmt.Errorf("invalid %s type %v", path, i)
+		}
+
+		return nil
+	}
+
 	nestedClaims := []string{"roles", "role", "groups", "group"}
-	for _, claimName := range nestedClaims {
-		if _, exists := tokenClaims[claimName]; exists {
-			switch tokenClaims[claimName].(type) {
-			case []interface{}:
-				roles := tokenClaims[claimName].([]interface{})
-				for _, role := range roles {
-					switch role.(type) {
-					case string:
-						claims.Roles = append(claims.Roles, role.(string))
-					default:
-						return nil, fmt.Errorf("invalid %s entry type %v", claimName, tokenClaims[claimName])
+	for claim, value := range tokenClaims {
+		for _, claimName := range nestedClaims {
+			if claim == claimName || strings.HasSuffix(claim, "/"+claimName) {
+				if err := addRoles(value, claimName); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	if m, exists := tokenClaims["app_metadata"]; exists {
+		if metadata, ok := m.(map[string]interface{}); ok {
+			for _, claimName := range nestedClaims {
+				if _, exists := metadata[claimName]; exists {
+					if err := addRoles(metadata[claimName], "app_metadata."+claimName); err != nil {
+						return nil, err
 					}
 				}
-			case string:
-				roles := tokenClaims[claimName].(string)
-				for _, role := range strings.Split(roles, " ") {
-					claims.Roles = append(claims.Roles, role)
+			}
+
+			if a, exists := metadata["authorization"]; exists {
+				if authorization, ok := a.(map[string]interface{}); ok {
+					for _, claimName := range nestedClaims {
+						if _, exists := authorization[claimName]; exists {
+							if err := addRoles(authorization[claimName], "app_metadata.authorization."+claimName); err != nil {
+								return nil, err
+							}
+						}
+					}
 				}
-			default:
-				return nil, fmt.Errorf("invalid %s type %v", claimName, tokenClaims[claimName])
+			}
+		}
+	}
+
+	if m, exists := tokenClaims["realm_access"]; exists {
+		if metadata, ok := m.(map[string]interface{}); ok {
+			for _, claimName := range nestedClaims {
+				if _, exists := metadata[claimName]; exists {
+					if err := addRoles(metadata[claimName], "realm_access"+claimName); err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 	}
