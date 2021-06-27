@@ -87,6 +87,7 @@ Download Caddy with the plugins enabled:
   * [Recording Source IP Address in JWT Token](#recording-source-ip-address-in-jwt-token)
   * [Session ID Cache](#session-id-cache)
   * [Caddyfile Shortcuts](#caddyfile-shortcuts)
+  * [Multiple Hosts](#multiple-hosts)
 
 <!-- end-markdown-toc -->
 
@@ -1676,6 +1677,9 @@ came from.
   }
 ```
 
+`[assets/conf/google/Caddyfile](assets/conf/google/Caddyfile)`
+contains a full example of setting up Google authentication.
+
 First, create new application, e.g. "My Gatekeeper".
 
 ![Google Identity Platform - Identity Platform - New Application](./assets/docs/images/oauth2_google_new_app.png)
@@ -2085,3 +2089,13 @@ Replaces:
       ...
     }
 ```
+
+[:arrow_up: Back to Top](#table-of-contents)
+
+### Multiple Hosts
+
+`[assets/conf/multihost/Caddyfile](assets/conf/multihost/Caddyfile)`
+contains an example of using the same auth config across multiple
+hostnames.
+
+[:arrow_up: Back to Top](#table-of-contents)

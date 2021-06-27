@@ -1,0 +1,79 @@
+# This Caddyfile contains a full example of using Google
+# Authentication and Caddy across multiple hosts in the same domain.
+
+auth.example.com {
+	route /auth* {
+		auth_portal {
+			path /auth
+            # All hosts using this auth must be in cookie_domain.
+            cookie_domain example.com
+			backends {
+				google_oauth2_backend {
+					method oauth2
+					realm google
+					provider google
+                    # These two values come from the Google Cloud Console:
+					client_id 1234567890-a1b2c3d4e5f6g7.apps.googleusercontent.com
+					client_secret abcd-efg-123456
+					scopes openid email profile
+                    # Here you can add specific roles to individual
+                    # user accounts:
+					user "^john@gmail.com" regex add role allowed
+                    # Sally has more roles than John.
+                    user "^sally@gmail.com" regex add role allowed else
+				}
+			}
+			jwt {
+                token_lifetime 604800
+				token_name access_token
+				token_secret secretpassword
+			}
+		}
+	}
+
+	route * {
+		jwt {
+			primary yes
+			trusted_tokens {
+				static_secret {
+                    # these values must match the values in the
+                    # auth_portal.jwt block above.
+					token_name access_token
+					token_secret secretpassword
+				}
+			}
+            # Get auth from the primary auth server.
+			auth_url https://auth.example.com/auth
+            # This restricts access to this route to only users who
+            # have been granted the `allowed` role.
+			allow roles allowed
+		}
+
+        # This respond is just a placeholder for whatever real content
+        # you want to serve, i.e. local files or a reverse_proxy.
+        respond * "This is the protected content!" 200
+	}
+}
+
+something.example.com {
+    route * {
+        # A bare jwt directive references back to the jwt with `primary yes`.
+        jwt
+        # This respond is just a placeholder for whatever real content
+        # you want to serve, i.e. local files or a reverse_proxy.
+        respond * "This is the protected content on something!" 200
+    }
+}
+
+else.example.com {
+    route * {
+        # This jwt block extends the jwt with `primary yes` and
+        # overrides the `allow` directive.
+        jwt {
+            allow roles else
+        }
+        # This respond is just a placeholder for whatever real content
+        # you want to serve, i.e. local files or a reverse_proxy.
+        respond * "This is the protected content on else!" 200
+    }
+}
